@@ -1,0 +1,7 @@
+export interface PredictRequest { symptoms: string[] }
+export interface PredictionResponse { predictions: Record<string, number> }
+export interface ReceiveRequest { symptoms: string[]; final_diagnosis_by_doctor: string[] }
+export interface Medication { dosage: string; drug: string; duration: string; strength: string }
+export interface ExtractResponse { disease_name: string; medications: Medication[]; pathology_tests: string[]; radiology_tests: string[] }
+export interface FeedbackRequest { disease_name: string; suggested: { suggested_medications: Medication[]; suggested_pathology_test: string[]; suggested_radiology_test: string[] }; final: { medications: Medication[]; pathology_tests: string[]; radiology_tests: string[] } }
+export interface AssessmentRecord { id: string; clinic_name?: string; patient_details: { name: string; patientId: string; age: string }; symptoms: string[]; doctor_diagnosis: string[]; top_prediction: string; feedback_submitted: boolean; suggested_recommendations?: { medications?: Medication[]; pathology_tests?: string[]; radiology_tests?: string[] }; final_recommendations?: { medications?: Medication[]; pathology_tests?: string[]; radiology_tests?: string[] }; created_at: string }
