@@ -15,6 +15,12 @@ export async function signIn(email: string, password: string) {
 	return data.user
 }
 
+export async function signOut() {
+	if (!supabase) return
+	const { error } = await supabase.auth.signOut()
+	if (error) throw new Error(error.message || 'Unable to sign out. Please try again.')
+}
+
 export async function createClinicAccount(doctorName: string, clinicName: string, email: string, password: string) {
 	if (!supabase) throw new Error('Supabase authentication is not configured.')
 	const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { doctor_name: doctorName, clinic_name: clinicName } } })
