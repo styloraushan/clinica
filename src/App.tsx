@@ -35,7 +35,7 @@ import {
   submitFeedback,
   receiveDiagnosis,
 } from "./services/api";
-import { createClinicAccount, getAssessments, getSymptoms, saveAssessment, signIn, signOut } from "./services/supabase";
+import { createClinicAccount, getAssessments, getCurrentUser, getSymptoms, saveAssessment, signIn, signOut } from "./services/supabase";
 
 const fallbackSymptoms = [
   "Fever",
@@ -59,6 +59,8 @@ type DoctorProfile = { name: string; clinic: string; email?: string };
 function App() {
   const [view, setView] = useState<View>("assessment");
   const [showLanding, setShowLanding] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({ name: "Guest workspace", clinic: "Clinica", email: "" });
   const [history, setHistory] = useState<AssessmentRecord[]>([]);
   const [symptoms, setSymptoms] = useState<string[]>([
@@ -92,12 +94,29 @@ function App() {
     ? Object.entries(predictions.predictions).sort(([, a], [, b]) => b - a)[0]
     : null;
 
+  const profileFromUser = (user: { user_metadata?: { doctor_name?: string; clinic_name?: string }; email?: string | null }): DoctorProfile => ({
+    name: user.user_metadata?.doctor_name || "Signed-in doctor",
+    clinic: user.user_metadata?.clinic_name || "Clinica",
+    email: user.email || "",
+  });
+
   useEffect(() => {
     getSymptoms()
       .then(setCommonSymptoms)
       .catch((error) => {
         if (import.meta.env.DEV) console.error(error);
       });
+  }, []);
+  useEffect(() => {
+    getCurrentUser()
+      .then((user) => {
+        if (user) {
+          setDoctorProfile(profileFromUser(user));
+          setSignedIn(true);
+          setShowLanding(false);
+        }
+      })
+      .finally(() => setAuthReady(true));
   }, []);
   useEffect(() => {
     if (view === "history" || view === "feedback") getAssessments(doctorProfile.clinic).then(setHistory).catch((error) => { if (import.meta.env.DEV) console.error(error); });
@@ -230,12 +249,13 @@ function App() {
     setLogoutBusy(true); setNotice("");
     try {
       await signOut(); setMobileMenuOpen(false); setProfileMenuOpen(false); setHistory([]);
-      setDoctorProfile({ name: "Guest workspace", clinic: "Clinica", email: "" }); setShowLanding(true);
+      setDoctorProfile({ name: "Guest workspace", clinic: "Clinica", email: "" }); setSignedIn(false); setShowLanding(true);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Unable to sign out. Please try again."); }
     finally { setLogoutBusy(false); }
   };
 
-  if (showLanding) return <LandingPage onStart={(profile) => { if (profile) setDoctorProfile(profile); setShowLanding(false); }} />;
+  if (!authReady) return <div className="app-loading" aria-live="polite">Loading Clinica…</div>;
+  if (showLanding) return <LandingPage signedIn={signedIn} onStart={(profile) => { if (profile) { setDoctorProfile(profile); setSignedIn(true); } setShowLanding(false); }} />;
 
   return (
     <div className="app-shell">
@@ -291,14 +311,14 @@ function App() {
           <button className="mobile-menu" aria-label="Open menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}>
             <Menu size={20} />
           </button>
-          <div className="workspace-header-brand">
+          <button className="workspace-header-brand workspace-home-button" onClick={() => setShowLanding(true)} aria-label="Go to Clinica landing page">
             <div className="landing-mark"><Stethoscope size={17} /></div>
             <strong>Clinica</strong>
-          </div>
-          <div className="mobile-workspace-brand">
+          </button>
+          <button className="mobile-workspace-brand workspace-home-button" onClick={() => setShowLanding(true)} aria-label="Go to Clinica landing page">
             <div className="landing-mark"><Stethoscope size={17} /></div>
             <strong>Clinica</strong>
-          </div>
+          </button>
           <div className="crumb">
             <span>Workspace</span>
             <ArrowRight size={14} />
@@ -903,7 +923,7 @@ function TestEditor({
     </div>
   );
 }
-function LandingPage({ onStart }: { onStart: (profile?: DoctorProfile) => void }) {
+function LandingPage({ onStart, signedIn }: { onStart: (profile?: DoctorProfile) => void; signedIn: boolean }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [doctorName, setDoctorName] = useState("");
@@ -913,13 +933,14 @@ function LandingPage({ onStart }: { onStart: (profile?: DoctorProfile) => void }
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [landingMenuOpen, setLandingMenuOpen] = useState(false);
+  const openAuth = (mode: "login" | "signup") => { setAuthMode(mode); setLoginError(""); setLandingMenuOpen(false); setLoginOpen(true); };
   const submitLogin = async (event: FormEvent) => { event.preventDefault(); if (authMode === "signup" && (!doctorName.trim() || !clinicName.trim())) return setLoginError("Enter the doctor and clinic name."); if (!email.trim() || !password) return setLoginError("Enter your email and password."); setLoginBusy(true); setLoginError(""); try { if (authMode === "signup") { const result = await createClinicAccount(doctorName.trim(), clinicName.trim(), email.trim(), password); if (result.session) onStart({ name: doctorName.trim(), clinic: clinicName.trim(), email: email.trim() }); else setLoginError("Account created. Check your email to confirm your account, then sign in."); } else { const user = await signIn(email.trim(), password); onStart({ name: user?.user_metadata?.doctor_name || "Signed-in doctor", clinic: user?.user_metadata?.clinic_name || "Clinica", email: user?.email || email.trim() }); } } catch (error) { setLoginError(error instanceof Error ? error.message : `Unable to ${authMode === "signup" ? "create the account" : "sign in"}. Please try again.`); } finally { setLoginBusy(false); } };
   return (
     <div className="landing-page">
       <header className="landing-nav">
         <div className="landing-brand"><div className="landing-mark"><Stethoscope size={19} /></div><strong>Clinica</strong></div>
-        <nav className={landingMenuOpen ? "landing-links open" : "landing-links"}><a href="#features" onClick={() => setLandingMenuOpen(false)}>Features</a><a href="#how" onClick={() => setLandingMenuOpen(false)}>How it works</a><a href="#clinics" onClick={() => setLandingMenuOpen(false)}>For clinics</a></nav>
-        <div className="landing-actions"><button className="landing-login" onClick={() => { setAuthMode("login"); setLoginOpen(true); }}>Log in</button><button className="landing-cta" onClick={() => { setAuthMode("signup"); setLoginOpen(true); }}>Create your clinic <ArrowRight size={15} /></button></div>
+        <nav className={landingMenuOpen ? "landing-links open" : "landing-links"}><a href="#features" onClick={() => setLandingMenuOpen(false)}>Features</a><a href="#how" onClick={() => setLandingMenuOpen(false)}>How it works</a><a href="#clinics" onClick={() => setLandingMenuOpen(false)}>For clinics</a><div className="landing-mobile-actions">{signedIn ? <button className="landing-cta" onClick={() => onStart()}>Open workspace <ArrowRight size={15} /></button> : <><button className="landing-login" onClick={() => openAuth("login")}>Log in</button><button className="landing-cta" onClick={() => openAuth("signup")}>Get started free <ArrowRight size={15} /></button></>}</div></nav>
+        <div className="landing-actions">{signedIn ? <button className="landing-cta" onClick={() => onStart()}>Open workspace <ArrowRight size={15} /></button> : <><button className="landing-login" onClick={() => openAuth("login")}>Log in</button><button className="landing-cta" onClick={() => openAuth("signup")}>Create your clinic <ArrowRight size={15} /></button></>}</div>
         <button className="landing-menu-button" onClick={() => setLandingMenuOpen((open) => !open)} aria-label="Toggle navigation" aria-expanded={landingMenuOpen}>{landingMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
       </header>
       <main className="landing-hero">
@@ -936,7 +957,7 @@ function LandingPage({ onStart }: { onStart: (profile?: DoctorProfile) => void }
       <section className="landing-section faq-section"><div className="landing-section-intro"><p className="landing-kicker">COMMON QUESTIONS</p><h2>Clear answers before you begin.</h2></div><div className="faq-list"><details><summary>Does Clinica make the final diagnosis?</summary><p>No. Clinica presents AI-supported possibilities and recommendations for review. The treating clinician remains responsible for the final diagnosis and plan.</p></details><details><summary>Where are assessment records stored?</summary><p>Signed-in clinic records are saved to the configured Supabase project, while each case sheet remains available for review and printing in the workspace.</p></details><details><summary>Who can use the workspace?</summary><p>Clinica is designed for qualified clinicians and care teams who need a structured way to document and review patient assessments.</p></details></div></section>
       <section className="landing-final-cta"><div><p className="landing-kicker">READY WHEN YOU ARE</p><h2>Bring every assessment into one clear workspace.</h2><p>Create your clinic account to start documenting patient assessments, recommendations, and final clinical decisions.</p></div><div className="landing-final-actions"><button className="landing-cta large" onClick={() => { setAuthMode("signup"); setLoginOpen(true); }}>Create your clinic <ArrowRight size={16} /></button><button className="landing-login" onClick={() => { setAuthMode("login"); setLoginOpen(true); }}>Log in</button></div></section>
       <footer className="landing-footer"><div className="landing-brand"><div className="landing-mark"><Stethoscope size={17} /></div><strong>Clinica</strong></div><span>Clinical decision support for clinician-led care.</span><a href="mailto:support@clinica.app">support@clinica.app</a></footer>
-      {loginOpen && <div className="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title"><form className="login-card" onSubmit={submitLogin}><button type="button" className="login-close" onClick={() => setLoginOpen(false)} aria-label="Close login"><X size={18} /></button><div className="landing-mark"><Stethoscope size={19} /></div><p className="landing-kicker">CLINICA WORKSPACE</p><h2 id="login-title">{authMode === "signup" ? "Create your clinic" : "Sign in to your dashboard"}</h2><p>{authMode === "signup" ? "Set up Clinica for your practice and keep every patient assessment organized." : "Access patient assessments, prediction history, and clinician feedback."}</p>{authMode === "signup" && <><label>Doctor name<input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} placeholder="Dr. Rhea Sharma" /></label><label>Clinic name<input value={clinicName} onChange={(event) => setClinicName(event.target.value)} placeholder="Green Valley Clinic" /></label></>}<label>Email address<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="doctor@clinic.com" /></label><label>Password<input type="password" autoComplete={authMode === "signup" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={authMode === "signup" ? "At least 6 characters" : "Enter your password"} /></label>{loginError && <div className="login-error"><AlertCircle size={15} />{loginError}</div>}<button className="landing-cta login-submit" disabled={loginBusy}>{loginBusy ? "Please wait..." : authMode === "signup" ? "Create clinic account" : "Sign in to dashboard"} <ArrowRight size={15} /></button><small>{authMode === "signup" ? "Supabase may ask you to confirm your email before signing in." : "Use an account created in Supabase Authentication."}</small><button type="button" className="auth-switch" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setLoginError(""); }}>{authMode === "signup" ? "Already have an account? Sign in" : "New to Clinica? Create your clinic"}</button></form></div>}
+      {loginOpen && <div className="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title"><form className="login-card" onSubmit={submitLogin}><button type="button" className="login-close" onClick={() => setLoginOpen(false)} aria-label="Close login"><X size={18} /></button><div className="landing-mark"><Stethoscope size={19} /></div><p className="landing-kicker">CLINICA WORKSPACE</p><h2 id="login-title">{authMode === "signup" ? "Create your clinic" : "Sign in to your dashboard"}</h2><p>{authMode === "signup" ? "Set up Clinica for your practice and keep every patient assessment organized." : "Access patient assessments, prediction history, and clinician feedback."}</p>{authMode === "signup" && <><label>Doctor name<input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} placeholder="Dr. Rhea Sharma" /></label><label>Clinic name<input value={clinicName} onChange={(event) => setClinicName(event.target.value)} placeholder="Green Valley Clinic" /></label></>}<label>Email address<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="doctor@clinic.com" /></label><label>Password<input type="password" autoComplete={authMode === "signup" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={authMode === "signup" ? "At least 6 characters" : "Enter your password"} /></label>{loginError && <div className="login-error"><AlertCircle size={15} />{loginError}</div>}<button className="landing-cta login-submit" disabled={loginBusy}>{loginBusy ? "Please wait..." : authMode === "signup" ? "Create clinic account" : "Sign in"} <ArrowRight size={15} /></button><small>{authMode === "signup" ? "Supabase may ask you to confirm your email before signing in." : "Use an account created in Supabase Authentication."}</small><button type="button" className="auth-switch" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setLoginError(""); }}>{authMode === "signup" ? "Already have an account? Sign in" : "New to Clinica? Create your clinic"}</button></form></div>}
     </div>
   );
 }

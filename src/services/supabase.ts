@@ -15,6 +15,13 @@ export async function signIn(email: string, password: string) {
 	return data.user
 }
 
+export async function getCurrentUser() {
+	if (!supabase) return null
+	const { data, error } = await supabase.auth.getSession()
+	if (error) return null
+	return data.session?.user ?? null
+}
+
 export async function signOut() {
 	if (!supabase) return
 	const { error } = await supabase.auth.signOut()
