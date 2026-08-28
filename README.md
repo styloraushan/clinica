@@ -10,7 +10,7 @@ copy .env.example .env
 npm run dev
 ```
 
-Set the four API variables in `.env` to deployed services, or use `127.0.0.1` ports for local services. `VITE_EXTRACT_API_URL` may be the exact endpoint `http://155.248.254.195:5000/extract`; the service avoids double-appending `/extract`. In development, `VITE_USE_API_PROXY=true` routes requests through Vite to avoid browser CORS errors. Set it to `false` only when your APIs explicitly allow the browser origin.
+Set the four API variables in `.env` to deployed services, or use `127.0.0.1` ports for local services. `VITE_EXTRACT_API_URL` may be the exact endpoint `http://155.248.254.195:5000/extract`. The client always calls same-origin `/api/*` routes: Vite proxies them during local development and Netlify rewrites them in production. This avoids HTTPS mixed-content and browser CORS failures.
 
 ## Supabase
 
