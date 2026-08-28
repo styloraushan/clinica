@@ -1,0 +1,4 @@
+/api/predict  http://155.248.254.195:6000/predict  200
+/api/receive  http://155.248.254.195:6000/receive  200
+/api/extract  http://155.248.254.195:5000/extract  200
+/api/feedback  http://155.248.254.195:5000/submit_feedback  200
