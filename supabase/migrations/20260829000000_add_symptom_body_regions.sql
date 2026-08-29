@@ -1,25 +1,69 @@
-alter table public.symptoms add column if not exists body_region text;
+-- =========================================================
+-- ADD BODY REGION
+-- =========================================================
 
+alter table public.symptoms
+add column if not exists body_region text;
+
+-- Index for fast active symptom filtering by body region
 create index if not exists symptoms_active_body_region_idx
-  on public.symptoms (body_region)
-  where active = true;
+on public.symptoms (body_region)
+where active = true;
+
+
+-- =========================================================
+-- UPDATE EXISTING SYMPTOMS
+-- =========================================================
 
 update public.symptoms
 set body_region = case name
+
+  -- HEAD
   when 'Headache' then 'Head'
   when 'Dizziness' then 'Head'
   when 'Confusion' then 'Head'
   when 'Fainting' then 'Head'
   when 'Seizures' then 'Head'
   when 'Loss of consciousness' then 'Head'
+
+  -- EYES
   when 'Blurred vision' then 'Eyes'
   when 'Red eyes' then 'Eyes'
+  when 'Eye pain' then 'Eyes'
+  when 'Watery eyes' then 'Eyes'
+  when 'Dry eyes' then 'Eyes'
+  when 'Eye discharge' then 'Eyes'
+  when 'Light sensitivity' then 'Eyes'
+
+  -- EARS
   when 'Ear pain' then 'Ears'
+  when 'Hearing loss' then 'Ears'
+  when 'Ringing in ears' then 'Ears'
+  when 'Ear discharge' then 'Ears'
+
+  -- NOSE
   when 'Runny nose' then 'Nose'
   when 'Nasal congestion' then 'Nose'
+  when 'Sneezing' then 'Nose'
+  when 'Nosebleed' then 'Nose'
+  when 'Loss of smell' then 'Nose'
+
+  -- MOUTH / THROAT
   when 'Sore throat' then 'Mouth / Throat'
   when 'Toothache' then 'Mouth / Throat'
   when 'Difficulty swallowing' then 'Mouth / Throat'
+  when 'Dry mouth' then 'Mouth / Throat'
+  when 'Mouth sores' then 'Mouth / Throat'
+  when 'Bad breath' then 'Mouth / Throat'
+  when 'Hoarseness' then 'Mouth / Throat'
+  when 'Difficulty speaking' then 'Mouth / Throat'
+
+  -- NECK
+  when 'Neck pain' then 'Neck'
+  when 'Neck stiffness' then 'Neck'
+  when 'Swollen neck' then 'Neck'
+
+  -- CHEST
   when 'Chest pain' then 'Chest'
   when 'Cough' then 'Chest'
   when 'Dry cough' then 'Chest'
@@ -28,6 +72,11 @@ set body_region = case name
   when 'Difficulty breathing' then 'Chest'
   when 'Wheezing' then 'Chest'
   when 'Palpitations' then 'Chest'
+  when 'Chest tightness' then 'Chest'
+  when 'Chest congestion' then 'Chest'
+  when 'Coughing blood' then 'Chest'
+
+  -- ABDOMEN
   when 'Abdominal pain' then 'Abdomen'
   when 'Nausea' then 'Abdomen'
   when 'Vomiting' then 'Abdomen'
@@ -36,43 +85,89 @@ set body_region = case name
   when 'Bloating' then 'Abdomen'
   when 'Loss of appetite' then 'Abdomen'
   when 'Heartburn' then 'Abdomen'
+  when 'Indigestion' then 'Abdomen'
+  when 'Stomach pain' then 'Abdomen'
+  when 'Abdominal swelling' then 'Abdomen'
+  when 'Gas' then 'Abdomen'
+  when 'Acid reflux' then 'Abdomen'
+
+  -- BACK
+  when 'Back pain' then 'Lower Back'
+  when 'Upper back pain' then 'Upper Back'
+  when 'Lower back pain' then 'Lower Back'
+  when 'Middle back pain' then 'Middle Back'
+  when 'Back stiffness' then 'Back'
+
+  -- PELVIS / URINARY
   when 'Frequent urination' then 'Pelvis'
   when 'Painful urination' then 'Pelvis'
   when 'Blood in urine' then 'Pelvis'
-  when 'Back pain' then 'Lower Back'
+  when 'Pelvic pain' then 'Pelvis'
+  when 'Urinary urgency' then 'Pelvis'
+  when 'Difficulty urinating' then 'Pelvis'
+  when 'Incontinence' then 'Pelvis'
+
+  -- ARMS
+  when 'Arm pain' then 'Arms'
+  when 'Left arm pain' then 'Left Arm'
+  when 'Right arm pain' then 'Right Arm'
+  when 'Arm weakness' then 'Arms'
+  when 'Shoulder pain' then 'Shoulders'
+  when 'Shoulder stiffness' then 'Shoulders'
+
+  -- HANDS
+  when 'Hand pain' then 'Hands'
+  when 'Hand swelling' then 'Hands'
+  when 'Numbness in hands' then 'Hands'
+  when 'Tingling in hands' then 'Hands'
+
+  -- LEGS
+  when 'Leg pain' then 'Legs'
+  when 'Leg swelling' then 'Legs'
+  when 'Leg weakness' then 'Legs'
+  when 'Calf pain' then 'Legs'
+  when 'Knee pain' then 'Legs'
+  when 'Knee swelling' then 'Legs'
+  when 'Hip pain' then 'Legs'
+
+  -- FEET
+  when 'Foot pain' then 'Feet'
+  when 'Foot swelling' then 'Feet'
+  when 'Heel pain' then 'Feet'
+  when 'Toe pain' then 'Feet'
+
+  -- SKIN
   when 'Rash' then 'Skin'
   when 'Skin itching' then 'Skin'
-  when 'Fever' then 'Skin'
-  when 'Fever with chills' then 'Skin'
-  when 'Chills' then 'Skin'
-  when 'Sweating' then 'Skin'
-  when 'Night sweats' then 'Skin'
-  when 'Body pain' then 'Skin'
-  when 'Joint pain' then 'Skin'
-  when 'Fatigue' then 'Skin'
-  when 'Weakness' then 'Skin'
-  when 'Muscle pain' then 'Skin'
-  when 'Muscle weakness' then 'Skin'
-  when 'Swelling' then 'Skin'
-  else body_region
-end
-where body_region is null;
+  when 'Dry skin' then 'Skin'
+  when 'Skin redness' then 'Skin'
+  when 'Skin lesions' then 'Skin'
+  when 'Skin discoloration' then 'Skin'
+  when 'Skin peeling' then 'Skin'
+  when 'Blisters' then 'Skin'
+  when 'Hives' then 'Skin'
+  when 'Skin irritation' then 'Skin'
 
-insert into public.symptoms (name, body_region)
-values
-  ('Eye pain', 'Eyes'), ('Watery eyes', 'Eyes'), ('Dry eyes', 'Eyes'), ('Eye discharge', 'Eyes'), ('Light sensitivity', 'Eyes'),
-  ('Hearing loss', 'Ears'), ('Ringing in ears', 'Ears'), ('Ear discharge', 'Ears'),
-  ('Sneezing', 'Nose'), ('Nosebleed', 'Nose'), ('Loss of smell', 'Nose'),
-  ('Dry mouth', 'Mouth / Throat'), ('Mouth sores', 'Mouth / Throat'), ('Bad breath', 'Mouth / Throat'), ('Hoarseness', 'Mouth / Throat'), ('Difficulty speaking', 'Mouth / Throat'),
-  ('Neck pain', 'Neck'), ('Neck stiffness', 'Neck'), ('Swollen neck', 'Neck'),
-  ('Chest tightness', 'Chest'), ('Chest congestion', 'Chest'), ('Coughing blood', 'Chest'),
-  ('Indigestion', 'Abdomen'), ('Stomach pain', 'Abdomen'), ('Abdominal swelling', 'Abdomen'), ('Gas', 'Abdomen'), ('Acid reflux', 'Abdomen'),
-  ('Upper back pain', 'Upper Back'), ('Lower back pain', 'Lower Back'), ('Middle back pain', 'Middle Back'), ('Back stiffness', 'Back'),
-  ('Pelvic pain', 'Pelvis'), ('Urinary urgency', 'Pelvis'), ('Difficulty urinating', 'Pelvis'), ('Incontinence', 'Pelvis'),
-  ('Arm pain', 'Arms'), ('Arm weakness', 'Arms'), ('Shoulder pain', 'Shoulders'), ('Shoulder stiffness', 'Shoulders'),
-  ('Hand pain', 'Hands'), ('Hand swelling', 'Hands'), ('Numbness in hands', 'Hands'), ('Tingling in hands', 'Hands'),
-  ('Leg pain', 'Legs'), ('Leg swelling', 'Legs'), ('Leg weakness', 'Legs'), ('Calf pain', 'Legs'), ('Knee pain', 'Legs'), ('Knee swelling', 'Legs'), ('Hip pain', 'Legs'),
-  ('Foot pain', 'Feet'), ('Foot swelling', 'Feet'), ('Heel pain', 'Feet'), ('Toe pain', 'Feet'),
-  ('Dry skin', 'Skin'), ('Skin redness', 'Skin'), ('Skin lesions', 'Skin'), ('Skin discoloration', 'Skin'), ('Skin peeling', 'Skin'), ('Blisters', 'Skin'), ('Hives', 'Skin'), ('Skin irritation', 'Skin'),
-  ('Weight loss', 'General / Whole Body'), ('Weight gain', 'General / Whole Body'), ('Dehydration', 'General / Whole Body'), ('Loss of energy', 'General / Whole Body')
-on conflict (name) do nothing;
+  -- GENERAL / WHOLE BODY
+  when 'Fever' then 'General / Whole Body'
+  when 'Fever with chills' then 'General / Whole Body'
+  when 'Chills' then 'General / Whole Body'
+  when 'Sweating' then 'General / Whole Body'
+  when 'Night sweats' then 'General / Whole Body'
+  when 'Body pain' then 'General / Whole Body'
+  when 'Joint pain' then 'General / Whole Body'
+  when 'Fatigue' then 'General / Whole Body'
+  when 'Weakness' then 'General / Whole Body'
+  when 'Muscle pain' then 'General / Whole Body'
+  when 'Muscle weakness' then 'General / Whole Body'
+  when 'Swelling' then 'General / Whole Body'
+  when 'Weight loss' then 'General / Whole Body'
+  when 'Weight gain' then 'General / Whole Body'
+  when 'Dehydration' then 'General / Whole Body'
+  when 'Loss of energy' then 'General / Whole Body'
+
+  else body_region
+
+end
+
+where body_region is null;

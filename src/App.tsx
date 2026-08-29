@@ -98,7 +98,8 @@ function App() {
   const [finalMeds, setFinalMeds] = useState<Medication[]>([]);
   const [finalPathology, setFinalPathology] = useState<string[]>([]);
   const [finalRadiology, setFinalRadiology] = useState<string[]>([]);
-  const [testInput, setTestInput] = useState("");
+  const [pathologyInput, setPathologyInput] = useState("");
+  const [radiologyInput, setRadiologyInput] = useState("");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [apiLog, setApiLog] = useState("");
@@ -794,15 +795,15 @@ function App() {
                         label="Pathology tests"
                         items={finalPathology}
                         setItems={setFinalPathology}
-                        input={testInput}
-                        setInput={setTestInput}
+                        input={pathologyInput}
+                        setInput={setPathologyInput}
                       />
                       <TestEditor
                         label="Radiology tests"
                         items={finalRadiology}
                         setItems={setFinalRadiology}
-                        input={testInput}
-                        setInput={setTestInput}
+                        input={radiologyInput}
+                        setInput={setRadiologyInput}
                       />
                     </div>
                   </div>
@@ -926,6 +927,13 @@ function TestEditor({
   input: string;
   setInput: (value: string) => void;
 }) {
+  const addItem = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setItems([...items, trimmed]);
+    setInput("");
+  };
+
   return (
     <div className="test-editor">
       <label>{label}</label>
@@ -947,13 +955,16 @@ function TestEditor({
           onChange={(event) => setInput(event.target.value)}
           placeholder={`Add ${label.toLowerCase()}`}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && input.trim()) {
-              setItems([...items, input.trim()]);
-              setInput("");
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addItem();
             }
           }}
         />
-        <Plus size={15} />
+        <button
+  type="button" onClick={addItem} aria-label={`Add ${label}`} className="unstyled-btn">
+  <Plus size={15} />
+</button>
       </div>
     </div>
   );
@@ -1047,7 +1058,7 @@ function FeedbackRecord({ record }: { record: AssessmentRecord }) {
 function CaseSheet({ record, profile, onClose }: { record: AssessmentRecord; profile: DoctorProfile; onClose: () => void }) {
   const suggested = record.suggested_recommendations || {};
   const final = record.final_recommendations || {};
-  return <div className="case-sheet panel"><div className="case-actions"><button className="outline-button" onClick={onClose}>Back to history</button><button className="primary-button print-button" onClick={() => window.print()}><Printer size={16} /> Print case sheet</button></div><div className="case-header"><div><div className="case-clinic"><div className="landing-mark"><Stethoscope size={16} /></div><div><strong>CliniAi</strong><span>{profile.clinic}</span></div></div><p className="eyebrow">PATIENT CASE SHEET</p><h2>{record.patient_details?.name || "Unnamed patient"}</h2><p>Assessment date: {record.created_at ? new Date(record.created_at).toLocaleString() : "Recent"}</p><p className="case-doctor">Prepared by: {profile.name}</p></div><span className="status-online"><i /> {record.feedback_submitted ? "Feedback submitted" : "Review pending"}</span></div><div className="case-meta"><span><b>Patient ID</b>{record.patient_details?.patientId || "Not provided"}</span><span><b>Age</b>{record.patient_details?.age || "Not provided"}</span><span><b>Doctor diagnosis</b>{record.doctor_diagnosis?.join(", ") || "Pending"}</span></div><div className="case-section"><h3>Symptoms recorded</h3><div className="case-tags">{(record.symptoms || []).map((item) => <span key={item}>{item}</span>)}</div></div><div className="case-section"><h3>AI prediction</h3><p className="case-prediction">{record.top_prediction}<small>Decision support only. Not a confirmed diagnosis.</small></p></div><div className="case-recommendation-grid"><div className="case-section"><h3>AI suggested</h3><RecommendationList meds={suggested.medications || []} pathology={suggested.pathology_tests || []} radiology={suggested.radiology_tests || []} /></div><div className="case-section"><h3>Final doctor recommendation</h3><RecommendationList meds={final.medications || []} pathology={final.pathology_tests || []} radiology={final.radiology_tests || []} /></div></div><p className="case-footer">This case sheet is a CliniAi decision-support record. Treatment decisions remain the responsibility of the qualified clinician.</p></div>;
+  return <div className="case-sheet panel"><div className="case-actions"><button className="outline-button" onClick={onClose}>Back to history</button><button className="primary-button print-button" onClick={() => window.print()}><Printer size={16} /> Print case sheet</button></div><div className="case-header-panel"><div className="case-header"><div className="case-clinic"><div className="landing-mark"><Stethoscope size={16} /></div><div><strong>CliniAi</strong><span>{profile.clinic}</span></div></div><div className="case-header-title"><p className="eyebrow">PATIENT CASE SHEET</p><h2>{record.patient_details?.name || "Unnamed patient"}</h2><div className="case-summary-row"><span>Date: {record.created_at ? new Date(record.created_at).toLocaleDateString() : "Recent"}</span></div><p className="case-doctor">Prepared by: {profile.name}</p></div></div><span className="status-online"><i /> {record.feedback_submitted ? "Feedback submitted" : "Review pending"}</span></div><div className="case-meta"><span><b>Patient ID</b>{record.patient_details?.patientId || "Not provided"}</span><span><b>Age</b>{record.patient_details?.age || "Not provided"}</span><span><b>Doctor diagnosis</b>{record.doctor_diagnosis?.join(", ") || "Pending"}</span></div><div className="case-section"><h3>Symptoms recorded</h3><div className="case-tags">{(record.symptoms || []).map((item) => <span key={item}>{item}</span>)}</div></div><div className="case-section"><h3>AI prediction</h3><p className="case-prediction">{record.top_prediction}<small>Decision support only. Not a confirmed diagnosis.</small></p></div><div className="case-recommendation-grid"><div className="case-section"><h3>AI suggested</h3><RecommendationList meds={suggested.medications || []} pathology={suggested.pathology_tests || []} radiology={suggested.radiology_tests || []} /></div><div className="case-section"><h3>Final doctor recommendation</h3><RecommendationList meds={final.medications || []} pathology={final.pathology_tests || []} radiology={final.radiology_tests || []} /></div></div><p className="case-footer">This case sheet is a CliniAi decision-support record. Treatment decisions remain the responsibility of the qualified clinician.</p></div>;
 }
 
 export default App;
