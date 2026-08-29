@@ -15,12 +15,15 @@ import {
   Menu,
   Microscope,
   Plus,
+  PersonStanding,
   Printer,
   Search,
   Settings,
   ShieldCheck,
   Stethoscope,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import "./App.css";
 import type {
@@ -35,25 +38,33 @@ import {
   submitFeedback,
   receiveDiagnosis,
 } from "./services/api";
-import { createClinicAccount, getAssessments, getCurrentUser, getSymptoms, saveAssessment, signIn, signOut } from "./services/supabase";
+import { createClinicAccount, getAssessments, getCurrentUser, getSymptoms, saveAssessment, signIn, signOut, type SymptomCatalogItem } from "./services/supabase";
+import frontBodyImage from "./assets/front-m.webp";
+import backBodyImage from "./assets/back-m.webp";
 
-const fallbackSymptoms = [
-  "Fever",
-  "Headache",
-  "Body pain",
-  "Joint pain",
-  "Rash",
-  "Fatigue",
-  "Nausea",
-  "Cough",
-];
+type BodyView = "front" | "back";
+type BodyRegion = { name: string; x: number; y: number; width: number; height: number; shape?: "ellipse"; path?: string };
+const bodyRegions: Record<BodyView, BodyRegion[]> = {
+  front: [
+    { name: "Head", x: 41, y: 1, width: 18, height: 12, shape: "ellipse" }, { name: "Face", x: 43, y: 5, width: 14, height: 8, shape: "ellipse" },
+    { name: "Eyes", x: 45, y: 10, width: 10, height: 2, path: "M44.5 10.1 C47 9.5 53 9.5 55.5 10.1 L55 11.8 C52.5 12.4 47.5 12.4 45 11.8 Z" }, { name: "Ears", x: 40, y: 8, width: 20, height: 3 }, { name: "Nose", x: 48, y: 8, width: 4, height: 3 }, { name: "Mouth / Throat", x: 45, y: 10, width: 10, height: 6 },
+    { name: "Neck", x: 44, y: 13, width: 12, height: 6 }, { name: "Chest", x: 31, y: 18, width: 38, height: 12, shape: "ellipse" }, { name: "Abdomen", x: 38, y: 30, width: 24, height: 13, path: "M38 30 C44 32 56 32 62 30 L61 40 C57 44 43 44 39 40 Z" }, { name: "Pelvis", x: 38, y: 42, width: 24, height: 8, path: "M39 41 C45 43 55 43 61 41 L60 47 C56 51 44 51 40 47 Z" },
+    { name: "Left Arm", x: 8, y: 22, width: 29, height: 22 }, { name: "Right Arm", x: 63, y: 22, width: 29, height: 22 }, { name: "Left Hand", x: 0, y: 40, width: 17, height: 13 }, { name: "Right Hand", x: 83, y: 40, width: 17, height: 13 },
+    { name: "Left Leg", x: 30, y: 49, width: 18, height: 37 }, { name: "Right Leg", x: 52, y: 49, width: 18, height: 37 }, { name: "Left Foot", x: 25, y: 84, width: 19, height: 14 }, { name: "Right Foot", x: 56, y: 84, width: 19, height: 14 }, { name: "Skin", x: 18, y: 1, width: 64, height: 97 },
+  ],
+  back: [
+    { name: "Head", x: 40, y: 1, width: 20, height: 10, shape: "ellipse" }, { name: "Neck", x: 43, y: 10, width: 14, height: 6 }, { name: "Upper Back", x: 30, y: 15, width: 40, height: 14 }, { name: "Middle Back", x: 34, y: 29, width: 32, height: 14 }, { name: "Lower Back", x: 35, y: 43, width: 30, height: 10 },
+    { name: "Left Shoulder", x: 23, y: 16, width: 17, height: 9 }, { name: "Right Shoulder", x: 60, y: 16, width: 17, height: 9 }, { name: "Left Arm", x: 5, y: 23, width: 28, height: 22 }, { name: "Right Arm", x: 67, y: 23, width: 28, height: 22 }, { name: "Left Hand", x: 0, y: 41, width: 16, height: 11 }, { name: "Right Hand", x: 84, y: 41, width: 16, height: 11 },
+    { name: "Pelvis", x: 35, y: 51, width: 30, height: 9 }, { name: "Left Leg", x: 27, y: 59, width: 21, height: 29 }, { name: "Right Leg", x: 52, y: 59, width: 21, height: 29 }, { name: "Left Foot", x: 23, y: 86, width: 18, height: 13 }, { name: "Right Foot", x: 59, y: 86, width: 18, height: 13 }, { name: "Skin", x: 18, y: 1, width: 64, height: 97 },
+  ],
+};
 const emptyMedication = (): Medication => ({
   drug: "",
   strength: "",
   dosage: "",
   duration: "",
 });
-type View = "assessment" | "history" | "feedback" | "status" | "settings";
+type View = "assessment" | "history" | "feedback" | "settings";
 type DoctorProfile = { name: string; clinic: string; email?: string };
 
 function App() {
@@ -69,8 +80,10 @@ function App() {
     "Body pain",
   ]);
   const [patient, setPatient] = useState({ name: "", patientId: "", age: "" });
-  const [commonSymptoms, setCommonSymptoms] =
-    useState<string[]>(fallbackSymptoms);
+  const [symptomCatalog, setSymptomCatalog] = useState<SymptomCatalogItem[]>([]);
+  const [bodyView, setBodyView] = useState<BodyView>("front");
+  const [activeBodyRegion, setActiveBodyRegion] = useState<string | null>(null);
+  const [bodyZoom, setBodyZoom] = useState(1);
   const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [predictions, setPredictions] = useState<PredictionResponse | null>(
@@ -102,7 +115,7 @@ function App() {
 
   useEffect(() => {
     getSymptoms()
-      .then(setCommonSymptoms)
+      .then(setSymptomCatalog)
       .catch((error) => {
         if (import.meta.env.DEV) console.error(error);
       });
@@ -237,9 +250,13 @@ function App() {
         ? current.filter((item) => item !== name)
         : [...current, name],
     );
-  const filteredSymptoms = commonSymptoms.filter((item) =>
-    item.toLowerCase().includes(symptomSearch.toLowerCase()),
+  // Keep the original search/catalog available independently of the body map.
+  const filteredSymptoms = symptomCatalog.filter((item) =>
+    item.name.toLowerCase().includes(symptomSearch.toLowerCase()),
   );
+  const regionSymptoms = activeBodyRegion
+    ? symptomCatalog.filter((item) => item.body_region === activeBodyRegion)
+    : [];
   const visibleSymptoms =
     symptomSearch.trim() || showAllSymptoms
       ? filteredSymptoms
@@ -276,7 +293,6 @@ function App() {
               ["assessment", LayoutDashboard, "Dashboard"],
               ["history", Clock3, "Prediction History"],
               ["feedback", ClipboardCheck, "Feedback"],
-              ["status", ShieldCheck, "API Status"],
               ["settings", Settings, "Settings"],
             ] as const
           ).map(([id, Icon, label]) => (
@@ -303,7 +319,7 @@ function App() {
       {mobileMenuOpen && <button className="mobile-menu-backdrop" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)} />}
       <aside className={mobileMenuOpen ? "mobile-drawer open" : "mobile-drawer"} aria-hidden={!mobileMenuOpen}>
         <div className="mobile-drawer-header"><strong>Clinica</strong><button className="drawer-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
-        <nav>{([['assessment', LayoutDashboard, 'Dashboard'], ['history', Clock3, 'Prediction History'], ['feedback', ClipboardCheck, 'Feedback'], ['status', ShieldCheck, 'API Status'], ['settings', Settings, 'Settings']] as const).map(([id, Icon, label]) => <button key={id} className={view === id ? "nav-item active" : "nav-item"} onClick={() => selectView(id)}><Icon size={17} />{label}</button>)}</nav>
+        <nav>{([['assessment', LayoutDashboard, 'Dashboard'], ['history', Clock3, 'Prediction History'], ['feedback', ClipboardCheck, 'Feedback'], ['settings', Settings, 'Settings']] as const).map(([id, Icon, label]) => <button key={id} className={view === id ? "nav-item active" : "nav-item"} onClick={() => selectView(id)}><Icon size={17} />{label}</button>)}</nav>
         <button className="logout-button" onClick={logout} disabled={logoutBusy}><LogOut size={17} />{logoutBusy ? "Signing out..." : "Log out"}</button>
       </aside>
       <main className="main">
@@ -419,9 +435,26 @@ function App() {
                   </div>
                   <span className="required">Required</span>
                 </div>
-                <p className="muted">
-                  Add all observed symptoms to improve prediction accuracy.
-                </p>
+                <p className="muted">Use the symptom catalog below, or expand the body map to select by location.</p>
+                <details className="body-map-disclosure">
+                  <summary><span><PersonStanding size={17} /> Body map</span><ChevronDown size={17} /></summary>
+                  <div className="body-map-content">
+                    <div className="body-view-toggle" role="tablist" aria-label="Body view">
+                      {(["front", "back"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={bodyView === item} className={bodyView === item ? "active" : ""} onClick={() => { setBodyView(item); setActiveBodyRegion(null); }}><PersonStanding size={13} />{item}</button>)}
+                    </div>
+                    <div className="body-map">
+                      <div className="body-map-canvas" style={{ transform: `scale(${bodyZoom})` }}>
+                        <img src={bodyView === "front" ? frontBodyImage : backBodyImage} alt={`${bodyView} body anatomy map`} />
+                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Select a body region">
+                          {[...bodyRegions[bodyView]].sort((a, b) => Number(b.name === "Skin") - Number(a.name === "Skin")).map((region) => region.path ? <path key={region.name} d={region.path} className={activeBodyRegion === region.name ? "body-hotspot selected" : "body-hotspot"} onClick={() => setActiveBodyRegion(region.name)}><title>{region.name}</title></path> : <rect key={region.name} x={region.x} y={region.y} width={region.width} height={region.height} rx={region.shape === "ellipse" ? 8 : 3} className={activeBodyRegion === region.name ? "body-hotspot selected" : "body-hotspot"} onClick={() => setActiveBodyRegion(region.name)}><title>{region.name}</title></rect>)}
+                        </svg>
+                      </div>
+                      <div className="body-zoom-controls" aria-label="Body map zoom controls"><button type="button" onClick={() => setBodyZoom((zoom) => Math.max(1, Number((zoom - .2).toFixed(1))))} disabled={bodyZoom <= 1} aria-label="Zoom out"><ZoomOut size={14} /></button><span>{Math.round(bodyZoom * 100)}%</span><button type="button" onClick={() => setBodyZoom((zoom) => Math.min(1.8, Number((zoom + .2).toFixed(1))))} disabled={bodyZoom >= 1.8} aria-label="Zoom in"><ZoomIn size={14} /></button></div>
+                    </div>
+                    <div className="body-region-status" aria-live="polite">{activeBodyRegion ? <><span>Selected region</span><strong>{activeBodyRegion}</strong></> : "Select a region on the body map to view its symptoms."}</div>
+                    {activeBodyRegion && <div className="region-symptom-picker"><div className="common-label">{activeBodyRegion.toUpperCase()} SYMPTOMS</div><div className="suggestions">{regionSymptoms.map((symptom) => <button key={symptom.id} className={symptoms.includes(symptom.name) ? "suggestion selected" : "suggestion"} onClick={() => toggleSymptom(symptom.name)}>{symptoms.includes(symptom.name) ? <Check size={14} /> : <Plus size={14} />}{symptom.name}</button>)}</div>{!regionSymptoms.length && <p className="no-region-symptoms">No active symptoms are configured for {activeBodyRegion}.</p>}</div>}
+                  </div>
+                </details>
                 <div className="search-field">
                   <Search size={17} />
                   <input
@@ -448,20 +481,20 @@ function App() {
                 <div className="suggestions">
                   {visibleSymptoms.map((symptom) => (
                     <button
-                      key={symptom}
+                      key={symptom.id}
                       className={
-                        symptoms.includes(symptom)
+                        symptoms.includes(symptom.name)
                           ? "suggestion selected"
                           : "suggestion"
                       }
-                      onClick={() => toggleSymptom(symptom)}
+                      onClick={() => toggleSymptom(symptom.name)}
                     >
-                      {symptoms.includes(symptom) ? (
+                      {symptoms.includes(symptom.name) ? (
                         <Check size={14} />
                       ) : (
                         <Plus size={14} />
                       )}
-                      {symptom}
+                      {symptom.name}
                     </button>
                   ))}
                 </div>
@@ -965,25 +998,50 @@ function PlayIcon() { return <svg viewBox="0 0 16 16" aria-hidden="true"><path d
 
 function WorkspaceView({ view, history, profile, onReturn }: { view: Exclude<View, "assessment">; history: AssessmentRecord[]; profile: DoctorProfile; onReturn: () => void }) {
   const [selectedCase, setSelectedCase] = useState<AssessmentRecord | null>(null);
-  const apiRows = [
-    ["Disease Prediction API", "/predict", import.meta.env.VITE_PREDICT_API_URL || "http://155.248.254.195:6000"],
-    ["Recommendation API", "/extract", import.meta.env.VITE_EXTRACT_API_URL || "http://155.248.254.195:5000/extract"],
-    ["Training Data API", "/receive", import.meta.env.VITE_RECEIVE_API_URL || "http://155.248.254.195:6000"],
-    ["Feedback API", "/submit_feedback", import.meta.env.VITE_FEEDBACK_API_URL || "http://155.248.254.195:5000"],
-  ];
+  const [recordSearch, setRecordSearch] = useState("");
+  const [recordDate, setRecordDate] = useState("");
+  const serviceStatuses = ["Disease prediction", "Recommendations", "Training data", "Feedback"];
+  const matchesFilters = (record: AssessmentRecord) => {
+    const query = recordSearch.trim().toLowerCase();
+    const searchable = [record.patient_details?.name, record.patient_details?.patientId, record.top_prediction, ...(record.doctor_diagnosis || [])].filter(Boolean).join(" ").toLowerCase();
+    const matchesSearch = !query || searchable.includes(query);
+    const matchesDate = !recordDate || record.created_at?.slice(0, 10) === recordDate;
+    return matchesSearch && matchesDate;
+  };
+  const filteredHistory = history.filter(matchesFilters);
+  const filteredFeedback = history.filter((record) => record.feedback_submitted).filter(matchesFilters);
   return (
     <div className="content workspace-view">
       <p className="eyebrow">CLINICAL WORKSPACE</p>
-      <h1>{view === "history" ? "Prediction history" : view === "feedback" ? "Feedback center" : view === "status" ? "API status" : "Workspace settings"}</h1>
-      <p className="subheading">{view === "history" ? "Review completed patient assessments saved in Supabase." : view === "feedback" ? "Monitor clinician feedback submitted to improve recommendations." : view === "status" ? "Configured clinical services and connection details." : "Review environment configuration for this workspace."}</p>
-      {view === "history" && <div className="history-area">{selectedCase ? <CaseSheet record={selectedCase} profile={profile} onClose={() => setSelectedCase(null)} /> : <div className="data-table panel"><div className="table-head"><span>Patient</span><span>Top prediction</span><span>Doctor diagnosis</span><span>Date</span><span>Case sheet</span></div>{history.length ? history.map((record, index) => <div className="table-row" key={record.id || index}><span><strong>{record.patient_details?.name || "Unnamed patient"}</strong><small>{record.patient_details?.patientId || "No patient ID"}</small></span><span>{record.top_prediction}</span><span>{record.doctor_diagnosis?.join(", ") || "Pending"}</span><span>{record.created_at ? new Date(record.created_at).toLocaleDateString() : "Recent"}</span><button className="case-button" onClick={() => setSelectedCase(record)}><ClipboardCheck size={14} /> Open</button></div>) : <div className="empty-row">No assessments saved yet. Complete an assessment to see it here.</div>}</div>}</div>}
-      {view === "feedback" && <div className="feedback-list">{history.filter((record) => record.feedback_submitted).length ? history.filter((record) => record.feedback_submitted).map((record, index) => <div className="feedback-record panel" key={record.id || index}><div className="feedback-record-head"><div><strong>{record.patient_details?.name || "Unnamed patient"}</strong><span>{record.top_prediction} · {record.created_at ? new Date(record.created_at).toLocaleDateString() : "Recent"}</span></div><span className="status-online"><i /> Submitted</span></div><div className="feedback-columns"><div><b>AI suggested</b><span>{record.suggested_recommendations?.medications?.length || 0} medications · {record.suggested_recommendations?.pathology_tests?.length || 0} pathology · {record.suggested_recommendations?.radiology_tests?.length || 0} radiology</span></div><div><b>Final doctor recommendation</b><span>{record.final_recommendations?.medications?.length || 0} medications · {record.final_recommendations?.pathology_tests?.length || 0} pathology · {record.final_recommendations?.radiology_tests?.length || 0} radiology</span></div></div></div>) : <div className="empty-row panel">No feedback submitted yet. Submit feedback from a completed assessment to see the real record here.</div>}</div>}
-      {view === "status" && <div className="status-list panel">{apiRows.map(([name, path, url]) => <div className="status-row" key={path}><div><strong>{name}</strong><span>POST {path}</span></div><span className="status-online"><i /> Configured</span><small>{url}</small></div>)}</div>}
-      {view === "settings" && <div className="settings-card panel"><div><strong>Supabase project</strong><span>{import.meta.env.VITE_SUPABASE_URL || "Not configured"}</span></div><div><strong>API proxy</strong><span>Enabled</span></div><div><strong>Data persistence</strong><span>{history.length ? "Supabase PostgreSQL connected" : "Ready for assessments"}</span></div></div>}
+      <h1>{view === "history" ? "Prediction history" : view === "feedback" ? "Feedback center" : "Workspace settings"}</h1>
+      <p className="subheading">{view === "history" ? "Review completed patient assessments saved in Supabase." : view === "feedback" ? "Monitor clinician feedback submitted to improve recommendations." : "Review environment configuration for this workspace."}</p>
+      {(view === "history" || view === "feedback") && <div className="record-filters"><label><Search size={15} /><input value={recordSearch} onChange={(event) => setRecordSearch(event.target.value)} placeholder="Search patient, ID, or diagnosis" /></label><label><span>Date</span><input type="date" value={recordDate} onChange={(event) => setRecordDate(event.target.value)} /></label>{(recordSearch || recordDate) && <button type="button" onClick={() => { setRecordSearch(""); setRecordDate(""); }}>Clear filters</button>}</div>}
+      {view === "history" && <div className="history-area">{selectedCase ? <CaseSheet record={selectedCase} profile={profile} onClose={() => setSelectedCase(null)} /> : <div className="data-table panel"><div className="table-head"><span>Patient</span><span>Top prediction</span><span>Doctor diagnosis</span><span>Date</span><span>Case sheet</span></div>{filteredHistory.length ? filteredHistory.map((record, index) => <div className="table-row" key={record.id || index}><span><strong>{record.patient_details?.name || "Unnamed patient"}</strong><small>{record.patient_details?.patientId || "No patient ID"}</small></span><span>{record.top_prediction}</span><span>{record.doctor_diagnosis?.join(", ") || "Pending"}</span><span>{record.created_at ? new Date(record.created_at).toLocaleDateString() : "Recent"}</span><button className="case-button" onClick={() => setSelectedCase(record)}><ClipboardCheck size={14} /> Open</button></div>) : <div className="empty-row">{history.length ? "No assessments match these filters." : "No assessments saved yet. Complete an assessment to see it here."}</div>}</div>}</div>}
+      {view === "feedback" && <div className="feedback-list">{filteredFeedback.length ? filteredFeedback.map((record, index) => <FeedbackRecord key={record.id || index} record={record} />) : <div className="empty-row panel">{history.some((record) => record.feedback_submitted) ? "No submitted feedback matches these filters." : "No feedback submitted yet. Submit feedback from a completed assessment to see the real record here."}</div>}</div>}
+      {view === "settings" && <><div className="settings-card panel"><div><strong>Supabase project</strong><span>{import.meta.env.VITE_SUPABASE_URL || "Not configured"}</span></div><div><strong>API proxy</strong><span>Enabled</span></div><div><strong>Data persistence</strong><span>{history.length ? "Supabase PostgreSQL connected" : "Ready for assessments"}</span></div></div><section className="service-status panel"><div><p className="eyebrow">SYSTEM STATUS</p><h2>Clinical services</h2><p>Configured services used by this workspace.</p></div><div className="service-status-list">{serviceStatuses.map((service) => <div key={service}><span>{service}</span><span className="status-online"><i /> Configured</span></div>)}</div></section></>}
       <button className="primary-button back-button" onClick={onReturn}><LayoutDashboard size={16} /> Return to dashboard</button>
     </div>
   );
 }
+
+function FeedbackRecord({ record }: { record: AssessmentRecord }) {
+  const suggested = record.suggested_recommendations || {};
+  const final = record.final_recommendations || {};
+  const summary = (recommendations: typeof suggested) => `${recommendations.medications?.length || 0} medications · ${recommendations.pathology_tests?.length || 0} pathology · ${recommendations.radiology_tests?.length || 0} radiology`;
+
+  return <div className="feedback-record panel">
+    <div className="feedback-record-head"><div><strong>{record.patient_details?.name || "Unnamed patient"}</strong><span>{record.top_prediction} · {record.created_at ? new Date(record.created_at).toLocaleDateString() : "Recent"}</span></div><span className="status-online"><i /> Submitted</span></div>
+    <div className="feedback-columns"><div><b>AI suggested</b><span>{summary(suggested)}</span></div><div><b>Final doctor recommendation</b><span>{summary(final)}</span></div></div>
+    <details className="feedback-details">
+      <summary>View recommendation details <ChevronDown size={15} /></summary>
+      <div className="feedback-detail-columns">
+        <div><b>AI suggested</b><RecommendationList meds={suggested.medications || []} pathology={suggested.pathology_tests || []} radiology={suggested.radiology_tests || []} /></div>
+        <div><b>Final doctor recommendation</b><RecommendationList meds={final.medications || []} pathology={final.pathology_tests || []} radiology={final.radiology_tests || []} /></div>
+      </div>
+    </details>
+  </div>;
+}
+
 function CaseSheet({ record, profile, onClose }: { record: AssessmentRecord; profile: DoctorProfile; onClose: () => void }) {
   const suggested = record.suggested_recommendations || {};
   const final = record.final_recommendations || {};

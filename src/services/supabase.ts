@@ -1,11 +1,21 @@
 import { supabase } from '../utils/supabase'
-const fallbackSymptoms = ['Fever', 'Headache', 'Body pain', 'Joint pain', 'Rash', 'Fatigue', 'Nausea', 'Cough']
+export type SymptomCatalogItem = { id: string; name: string; body_region: string | null }
+const fallbackSymptoms: SymptomCatalogItem[] = [
+	{ id: 'fever', name: 'Fever', body_region: 'Skin' }, { id: 'headache', name: 'Headache', body_region: 'Head' },
+	{ id: 'body-pain', name: 'Body pain', body_region: 'Skin' }, { id: 'rash', name: 'Rash', body_region: 'Skin' },
+	{ id: 'nausea', name: 'Nausea', body_region: 'Abdomen' }, { id: 'cough', name: 'Cough', body_region: 'Chest' },
+]
 
 export async function getSymptoms() {
 	if (!supabase) return fallbackSymptoms
-	const { data, error } = await supabase.from('symptoms').select('name').eq('active', true).order('name')
-	if (error) throw new Error('Unable to load the symptom catalog from Supabase.')
-	return data.map((symptom) => symptom.name)
+	const { data, error } = await supabase.from('symptoms').select('id, name, body_region').eq('active', true).order('name')
+	if (!error) return data as SymptomCatalogItem[]
+
+	// Keep the original catalog UI working until the body_region migration has
+	// been applied to an existing Supabase project.
+	const legacy = await supabase.from('symptoms').select('id, name').eq('active', true).order('name')
+	if (legacy.error) throw new Error('Unable to load the symptom catalog from Supabase.')
+	return legacy.data.map((symptom) => ({ ...symptom, body_region: null }))
 }
 
 export async function signIn(email: string, password: string) {
