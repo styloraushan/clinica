@@ -3,9 +3,6 @@ import {
   Activity,
   AlertCircle,
   ArrowRight,
-  ArrowDown,
-  ArrowLeft,
-  ArrowUp,
   BarChart3,
   Bell,
   Check,
@@ -25,8 +22,7 @@ import {
   ShieldCheck,
   Stethoscope,
   X,
-  ZoomIn,
-  ZoomOut,
+ 
 } from "lucide-react";
 import "./App.css";
 import type {
@@ -86,8 +82,7 @@ function App() {
   const [symptomCatalog, setSymptomCatalog] = useState<SymptomCatalogItem[]>([]);
   const [bodyView, setBodyView] = useState<BodyView>("front");
   const [activeBodyRegion, setActiveBodyRegion] = useState<string | null>(null);
-  const [bodyZoom, setBodyZoom] = useState(1);
-  const [bodyPan, setBodyPan] = useState({ x: 0, y: 0 });
+  
   const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [predictions, setPredictions] = useState<PredictionResponse | null>(
