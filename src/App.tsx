@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
+
 import {
   Activity,
   AlertCircle,
   ArrowRight,
+  
   BarChart3,
   Bell,
   Check,
@@ -22,7 +24,7 @@ import {
   ShieldCheck,
   Stethoscope,
   X,
- 
+
 } from "lucide-react";
 import "./App.css";
 import type {
@@ -82,7 +84,8 @@ function App() {
   const [symptomCatalog, setSymptomCatalog] = useState<SymptomCatalogItem[]>([]);
   const [bodyView, setBodyView] = useState<BodyView>("front");
   const [activeBodyRegion, setActiveBodyRegion] = useState<string | null>(null);
-  
+
+
   const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [predictions, setPredictions] = useState<PredictionResponse | null>(
@@ -442,13 +445,13 @@ function App() {
                       {(["front", "back"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={bodyView === item} className={bodyView === item ? "active" : ""} onClick={() => { setBodyView(item); setActiveBodyRegion(null); }}><PersonStanding size={13} />{item}</button>)}
                     </div>
                     <div className="body-map">
-                      <div className="body-map-canvas" style={{ transform: `translate(${bodyPan.x}px, ${bodyPan.y}px) scale(${bodyZoom})` }}>
+                      <div className="body-map-canvas">
                         <img src={bodyView === "front" ? frontBodyImage : backBodyImage} alt={`${bodyView} body anatomy map`} />
                         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Select a body region">
                           {[...bodyRegions[bodyView]].sort((a, b) => Number(b.name === "Skin") - Number(a.name === "Skin")).map((region) => region.path ? <path key={region.name} d={region.path} className={activeBodyRegion === region.name ? "body-hotspot selected" : "body-hotspot"} onClick={() => setActiveBodyRegion(region.name)}><title>{region.name}</title></path> : <rect key={region.name} x={region.x} y={region.y} width={region.width} height={region.height} rx={region.shape === "ellipse" ? 8 : 3} className={activeBodyRegion === region.name ? "body-hotspot selected" : "body-hotspot"} onClick={() => setActiveBodyRegion(region.name)}><title>{region.name}</title></rect>)}
                         </svg>
                       </div>
-                      {/* <div className="body-map-controls"><div className="body-pan-controls" aria-label="Move body map"><button type="button" onClick={() => setBodyPan((pan) => ({ ...pan, y: Math.min(0, pan.y + 12) }))} disabled={bodyZoom <= 1} aria-label="Move down"><ArrowDown size={13} /></button><button type="button" onClick={() => setBodyPan((pan) => ({ ...pan, x: Math.min(0, pan.x + 12) }))} disabled={bodyZoom <= 1} aria-label="Move right"><ArrowRight size={13} /></button><button type="button" onClick={() => setBodyPan((pan) => ({ ...pan, x: Math.max(-65, pan.x - 12) }))} disabled={bodyZoom <= 1} aria-label="Move left"><ArrowLeft size={13} /></button><button type="button" onClick={() => setBodyPan((pan) => ({ ...pan, y: Math.max(-65, pan.y - 12) }))} disabled={bodyZoom <= 1} aria-label="Move up"><ArrowUp size={13} /></button></div><div className="body-zoom-controls" aria-label="Body map zoom controls"><button type="button" onClick={() => { setBodyZoom((zoom) => Math.max(1, Number((zoom - .2).toFixed(1)))); setBodyPan({ x: 0, y: 0 }); }} disabled={bodyZoom <= 1} aria-label="Zoom out"><ZoomOut size={14} /></button><span>{Math.round(bodyZoom * 100)}%</span><button type="button" onClick={() => setBodyZoom((zoom) => Math.min(1.8, Number((zoom + .2).toFixed(1))))} disabled={bodyZoom >= 1.8} aria-label="Zoom in"><ZoomIn size={14} /></button></div></div> */}
+                      
                     </div>
                     <div className="body-region-status" aria-live="polite">{activeBodyRegion ? <><span>Selected region</span><strong>{activeBodyRegion}</strong></> : "Select a region on the body map to view its symptoms."}</div>
                     {activeBodyRegion && <div className="region-symptom-picker"><div className="common-label">{activeBodyRegion.toUpperCase()} SYMPTOMS</div><div className="suggestions">{regionSymptoms.map((symptom) => <button key={symptom.id} className={symptoms.includes(symptom.name) ? "suggestion selected" : "suggestion"} onClick={() => toggleSymptom(symptom.name)}>{symptoms.includes(symptom.name) ? <Check size={14} /> : <Plus size={14} />}{symptom.name}</button>)}</div>{!regionSymptoms.length && <p className="no-region-symptoms">No active symptoms are configured for {activeBodyRegion}.</p>}</div>}
