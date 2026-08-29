@@ -1,5 +1,5 @@
 alter table public.assessments
-	add column if not exists clinic_name text not null default 'Clinica';
+	add column if not exists clinic_name text not null default 'CliniAi';
 
 create index if not exists assessments_clinic_name_created_at_idx
 	on public.assessments (clinic_name, created_at desc);

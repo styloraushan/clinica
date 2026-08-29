@@ -1,6 +1,6 @@
-# Clinica AI Assistant
+# CliniAi AI Assistant
 
-Clinical decision-support UI built with React, Vite, TypeScript, Lucide, and Supabase.
+CliniAil decision-support UI built with React, Vite, TypeScript, Lucide, and Supabase.
 
 ## Run locally
 
